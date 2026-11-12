@@ -1,3 +1,5 @@
+import TUK_logo_mode
+
 from pico2d import (
     SDL_KEYDOWN,
     SDL_QUIT,
@@ -12,8 +14,8 @@ from pico2d import (
 
 
 def main():
-    open_canvas(900, 600)
-    running = True
+    open_canvas(800, 600)
+    running = TUK_logo_mode.run()
 
     while running:
         for event in get_events():
