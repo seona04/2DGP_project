@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import different_rule_mode
 import story1_mode
 import story2_mode
 import story3_mode
@@ -33,4 +34,4 @@ def run():
                 f"Unexpected result from {story_module.__name__}: {result}"
             )
 
-    return "title_ui"
+    return different_rule_mode.run()
