@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import different_game1_after_mode
+import different_game2_before
 from pico2d import (
     SDL_BUTTON_LEFT,
     SDL_BLENDMODE_BLEND,
@@ -60,7 +61,10 @@ def run():
                 and event.button == SDL_BUTTON_LEFT
                 and _clicked_close_button(event.x, event.y)
             ):
-                return different_game1_after_mode.run()
+                result = different_game1_after_mode.run()
+                if result == "different_game2_before":
+                    return different_game2_before.run()
+                return result
 
         clear_canvas()
         image.draw(

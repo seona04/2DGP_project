@@ -1,7 +1,6 @@
 from pathlib import Path
 from time import monotonic
 
-import different_game2_before
 from pico2d import (
     SDL_BUTTON_LEFT,
     SDL_BLENDMODE_BLEND,
@@ -39,7 +38,39 @@ OBJECT_CENTER_X = 409
 OBJECT_CENTER_Y = 227
 OBJECT_WIDTH = 236
 OBJECT_HEIGHT = 340
-ANIMATION_FRAME_DURATION = TIMER_DURATION / OBJECT_FRAME_COUNT
+OVERLAY_FADE_DURATION = 2.0
+PAINTING_FRAME_COUNT = 6
+PAINTING_SOURCE_TOP = 210
+PAINTING_SOURCE_HEIGHT = 325
+PAINTING_CENTER_X = 282
+PAINTING_CENTER_Y = 451
+PAINTING_WIDTH = 108
+PAINTING_HEIGHT = 144
+POCKETWATCH_FRAME_COUNT = 7
+POCKETWATCH_FRAME_START_X = 276
+POCKETWATCH_FRAME_WIDTH = 270
+POCKETWATCH_SOURCE_TOP = 260
+POCKETWATCH_SOURCE_HEIGHT = 190
+POCKETWATCH_CENTER_X = 409
+POCKETWATCH_CENTER_Y = 245
+POCKETWATCH_WIDTH = 68
+POCKETWATCH_HEIGHT = 58
+TOOLBOX_FRAME_COUNT = 6
+TOOLBOX_FRAME_WIDTH = 362
+TOOLBOX_SOURCE_TOP = 200
+TOOLBOX_SOURCE_HEIGHT = 320
+TOOLBOX_CENTER_X = 657
+TOOLBOX_CENTER_Y = 128
+TOOLBOX_WIDTH = 121
+TOOLBOX_HEIGHT = 143
+SCREW_FRAME_COUNT = 6
+SCREW_FRAME_WIDTH = 362
+SCREW_SOURCE_TOP = 340
+SCREW_SOURCE_HEIGHT = 110
+SCREW_CENTER_X = 642
+SCREW_CENTER_Y = 50
+SCREW_WIDTH = 75
+SCREW_HEIGHT = 25
 GLOVE_FRAME_COUNT = 5
 GLOVE_FRAME_WIDTH = 434
 GLOVE_SOURCE_TOP = 250
@@ -48,7 +79,7 @@ GLOVE_CENTER_X = 678
 GLOVE_CENTER_Y = 252
 GLOVE_WIDTH = 54
 GLOVE_HEIGHT = 27
-O_MARKER_PADDING = 12
+O_MARKER_SIZE = 54
 CLICK_REGIONS = {
     "display_case": (
         OBJECT_CENTER_X,
@@ -57,6 +88,25 @@ CLICK_REGIONS = {
         OBJECT_HEIGHT,
     ),
     "glove": (GLOVE_CENTER_X, GLOVE_CENTER_Y, GLOVE_WIDTH, GLOVE_HEIGHT),
+    "painting": (
+        PAINTING_CENTER_X,
+        PAINTING_CENTER_Y,
+        PAINTING_WIDTH,
+        PAINTING_HEIGHT,
+    ),
+    "pocketwatch": (
+        POCKETWATCH_CENTER_X,
+        POCKETWATCH_CENTER_Y,
+        POCKETWATCH_WIDTH,
+        POCKETWATCH_HEIGHT,
+    ),
+    "toolbox": (
+        TOOLBOX_CENTER_X,
+        TOOLBOX_CENTER_Y,
+        TOOLBOX_WIDTH,
+        TOOLBOX_HEIGHT,
+    ),
+    "screws": (SCREW_CENTER_X, SCREW_CENTER_Y, SCREW_WIDTH, SCREW_HEIGHT),
 }
 
 
@@ -73,10 +123,8 @@ def _object_frame_index(elapsed):
 
 
 def _animation_frame_index(elapsed, frame_count):
-    return min(
-        max(int(max(elapsed, 0.0) / ANIMATION_FRAME_DURATION), 0),
-        frame_count - 1,
-    )
+    progress = min(max(elapsed / TIMER_DURATION, 0.0), 1.0)
+    return min(int(progress * frame_count), frame_count - 1)
 
 
 def _draw_object(sprite, elapsed):
@@ -108,6 +156,73 @@ def _draw_glove(sprite, elapsed):
     )
 
 
+def _draw_painting(sprite, elapsed):
+    frame_width = sprite.w // PAINTING_FRAME_COUNT
+    frame_bottom = sprite.h - PAINTING_SOURCE_TOP - PAINTING_SOURCE_HEIGHT
+    sprite.clip_draw(
+        _animation_frame_index(elapsed, PAINTING_FRAME_COUNT) * frame_width,
+        frame_bottom,
+        frame_width,
+        PAINTING_SOURCE_HEIGHT,
+        PAINTING_CENTER_X,
+        PAINTING_CENTER_Y,
+        PAINTING_WIDTH,
+        PAINTING_HEIGHT,
+    )
+
+
+def _draw_pocketwatch(sprite, elapsed):
+    frame_bottom = sprite.h - POCKETWATCH_SOURCE_TOP - POCKETWATCH_SOURCE_HEIGHT
+    sprite.clip_draw(
+        POCKETWATCH_FRAME_START_X
+        + _animation_frame_index(elapsed, POCKETWATCH_FRAME_COUNT)
+        * POCKETWATCH_FRAME_WIDTH,
+        frame_bottom,
+        POCKETWATCH_FRAME_WIDTH,
+        POCKETWATCH_SOURCE_HEIGHT,
+        POCKETWATCH_CENTER_X,
+        POCKETWATCH_CENTER_Y,
+        POCKETWATCH_WIDTH,
+        POCKETWATCH_HEIGHT,
+    )
+
+
+def _draw_toolbox(sprite, elapsed):
+    frame_bottom = sprite.h - TOOLBOX_SOURCE_TOP - TOOLBOX_SOURCE_HEIGHT
+    sprite.clip_draw(
+        _animation_frame_index(elapsed, TOOLBOX_FRAME_COUNT)
+        * TOOLBOX_FRAME_WIDTH,
+        frame_bottom,
+        TOOLBOX_FRAME_WIDTH,
+        TOOLBOX_SOURCE_HEIGHT,
+        TOOLBOX_CENTER_X,
+        TOOLBOX_CENTER_Y,
+        TOOLBOX_WIDTH,
+        TOOLBOX_HEIGHT,
+    )
+
+
+def _draw_screws(sprite, elapsed):
+    frame_bottom = sprite.h - SCREW_SOURCE_TOP - SCREW_SOURCE_HEIGHT
+    sprite.clip_draw(
+        _animation_frame_index(elapsed, SCREW_FRAME_COUNT)
+        * SCREW_FRAME_WIDTH,
+        frame_bottom,
+        SCREW_FRAME_WIDTH,
+        SCREW_SOURCE_HEIGHT,
+        SCREW_CENTER_X,
+        SCREW_CENTER_Y,
+        SCREW_WIDTH,
+        SCREW_HEIGHT,
+    )
+
+
+def _draw_fading_overlay(sprite, draw_frame, elapsed, opacity):
+    sprite.opacify(opacity)
+    draw_frame(sprite, elapsed)
+    sprite.opacify(1.0)
+
+
 def _contains_click(region, mouse_x, mouse_y):
     center_x, center_y, width, height = region
     left = center_x - width / 2
@@ -121,14 +236,12 @@ def _draw_click_markers(marker, marked_regions):
     for name, region in CLICK_REGIONS.items():
         if name not in marked_regions:
             continue
-        center_x, center_y, width, height = region
-        size = max(width, height) + O_MARKER_PADDING
-        scale = size / max(marker.w, marker.h)
+        center_x, center_y, _, _ = region
         marker.draw(
             center_x,
             center_y,
-            marker.w * scale,
-            marker.h * scale,
+            O_MARKER_SIZE,
+            O_MARKER_SIZE,
         )
 
 
@@ -176,16 +289,55 @@ def run():
         str(Path(__file__).with_name("timer_animation_sprite.png"))
     )
     prepare_timer_sprite(timer_sprite)
-    object_sprite = load_image(
-        str(
-            Path(__file__).with_name(
-                "골드 회중시계가 등장하는 앤티크 진열장 애니메이션 스프라이트 시트-2.png"
-            )
-        )
+    display_case_sprite = load_image(
+        str(Path(__file__).with_name("진열장_animation_sprite.png"))
     )
-    _enable_alpha(object_sprite, "display case sprite")
-    if object_sprite.w % OBJECT_FRAME_COUNT:
+    _enable_alpha(display_case_sprite, "display case sprite")
+    if display_case_sprite.w % OBJECT_FRAME_COUNT:
         raise RuntimeError("Display case sprite must contain six equal-width frames")
+    painting_sprite = load_image(
+        str(Path(__file__).with_name("액자_animation_sprite.png"))
+    )
+    if (
+        painting_sprite.w % PAINTING_FRAME_COUNT
+        or painting_sprite.h < PAINTING_SOURCE_TOP + PAINTING_SOURCE_HEIGHT
+    ):
+        raise RuntimeError("Painting sprite dimensions do not match its six-frame layout")
+    _enable_alpha(painting_sprite, "painting sprite")
+    pocketwatch_sprite = load_image(
+        str(Path(__file__).with_name("황금회중시계_animation_sprite.png"))
+    )
+    if (
+        pocketwatch_sprite.w
+        < POCKETWATCH_FRAME_START_X
+        + POCKETWATCH_FRAME_COUNT * POCKETWATCH_FRAME_WIDTH
+        or pocketwatch_sprite.h
+        < POCKETWATCH_SOURCE_TOP + POCKETWATCH_SOURCE_HEIGHT
+    ):
+        raise RuntimeError(
+            "Pocketwatch sprite dimensions do not match its seven-frame layout"
+        )
+    _enable_alpha(pocketwatch_sprite, "pocketwatch sprite")
+    toolbox_sprite = load_image(
+        str(Path(__file__).with_name("공구함_animation_sprite.png"))
+    )
+    if (
+        toolbox_sprite.w < TOOLBOX_FRAME_COUNT * TOOLBOX_FRAME_WIDTH
+        or toolbox_sprite.h < TOOLBOX_SOURCE_TOP + TOOLBOX_SOURCE_HEIGHT
+    ):
+        raise RuntimeError(
+            "Toolbox sprite dimensions do not match its six-frame layout"
+        )
+    _enable_alpha(toolbox_sprite, "toolbox sprite")
+    screw_sprite = load_image(
+        str(Path(__file__).with_name("나사_animation_sprite.png"))
+    )
+    if (
+        screw_sprite.w < SCREW_FRAME_COUNT * SCREW_FRAME_WIDTH
+        or screw_sprite.h < SCREW_SOURCE_TOP + SCREW_SOURCE_HEIGHT
+    ):
+        raise RuntimeError("Screw sprite dimensions do not match its six-frame layout")
+    _enable_alpha(screw_sprite, "screw sprite")
     glove_sprite = load_image(
         str(Path(__file__).with_name("장갑_animation_sprite.png"))
     )
@@ -229,12 +381,29 @@ def run():
             CANVAS_HEIGHT,
         )
         elapsed = monotonic() - start_time
-        _draw_object(object_sprite, elapsed)
-        _draw_glove(glove_sprite, elapsed)
+        overlay_opacity = min(elapsed / OVERLAY_FADE_DURATION, 1.0)
+        _draw_fading_overlay(
+            painting_sprite, _draw_painting, elapsed, overlay_opacity
+        )
+        _draw_fading_overlay(
+            toolbox_sprite, _draw_toolbox, elapsed, overlay_opacity
+        )
+        _draw_fading_overlay(
+            screw_sprite, _draw_screws, elapsed, overlay_opacity
+        )
+        _draw_fading_overlay(
+            display_case_sprite, _draw_object, elapsed, overlay_opacity
+        )
+        _draw_fading_overlay(
+            pocketwatch_sprite, _draw_pocketwatch, elapsed, overlay_opacity
+        )
+        _draw_fading_overlay(
+            glove_sprite, _draw_glove, elapsed, overlay_opacity
+        )
         _draw_click_markers(o_marker, marked_regions)
         _draw_timer(timer_sprite, elapsed)
         _draw_timer_items(hint_icon, timer_icon, timer_sprite)
         update_canvas()
         if elapsed >= TIMER_DURATION:
-            return different_game2_before.run()
+            return "different_game2_before"
         delay(0.01)
