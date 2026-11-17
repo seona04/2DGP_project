@@ -22,38 +22,50 @@ TIMER_COLUMNS = 3
 TIMER_ROWS = 4
 TIMER_FRAME_COUNT = TIMER_COLUMNS * TIMER_ROWS
 TIMER_WIDTH = 225
-TIMER_RIGHT_MARGIN = 64
+TIMER_LEFT_MARGIN = 16
 TIMER_TOP_MARGIN = 10
 
 
-def _timer_frame_index(elapsed):
+def _timer_frame_state(elapsed):
     progress = min(max(elapsed / TIMER_DURATION, 0.0), 1.0)
-    return min(int(progress * (TIMER_FRAME_COUNT - 1)), TIMER_FRAME_COUNT - 1)
+    frame_position = progress * (TIMER_FRAME_COUNT - 1)
+    frame_index = int(frame_position)
+    next_frame_index = min(frame_index + 1, TIMER_FRAME_COUNT - 1)
+    return frame_index, next_frame_index, frame_position - frame_index
 
 
 def _draw_timer(sprite, elapsed):
     frame_width = sprite.w // TIMER_COLUMNS
     frame_height = sprite.h // TIMER_ROWS
-    frame_index = _timer_frame_index(elapsed)
-    column = frame_index % TIMER_COLUMNS
-    row_from_top = frame_index // TIMER_COLUMNS
-    frame_left = column * frame_width
-    frame_bottom = sprite.h - (row_from_top + 1) * frame_height
+    frame_index, next_frame_index, opacity = _timer_frame_state(elapsed)
     draw_height = TIMER_WIDTH * frame_height / frame_width
-    draw_center_x = CANVAS_WIDTH - TIMER_RIGHT_MARGIN - TIMER_WIDTH / 2
+    draw_center_x = TIMER_LEFT_MARGIN + TIMER_WIDTH / 2
     draw_center_y = (
         CANVAS_HEIGHT - TIMER_TOP_MARGIN - draw_height / 2
     )
-    sprite.clip_draw(
-        frame_left,
-        frame_bottom,
-        frame_width,
-        frame_height,
-        draw_center_x,
-        draw_center_y,
-        TIMER_WIDTH,
-        draw_height,
-    )
+
+    def draw_frame(index):
+        column = index % TIMER_COLUMNS
+        row_from_top = index // TIMER_COLUMNS
+        frame_left = column * frame_width
+        frame_bottom = sprite.h - (row_from_top + 1) * frame_height
+        sprite.clip_draw(
+            frame_left,
+            frame_bottom,
+            frame_width,
+            frame_height,
+            draw_center_x,
+            draw_center_y,
+            TIMER_WIDTH,
+            draw_height,
+        )
+
+    sprite.opacify(1.0)
+    draw_frame(frame_index)
+    if next_frame_index != frame_index and opacity > 0:
+        sprite.opacify(opacity)
+        draw_frame(next_frame_index)
+    sprite.opacify(1.0)
 
 
 def run():
