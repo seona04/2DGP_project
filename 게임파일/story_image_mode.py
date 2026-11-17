@@ -1,4 +1,5 @@
 from pathlib import Path
+from time import monotonic
 
 from pico2d import (
     SDL_BLENDMODE_BLEND,
@@ -22,6 +23,7 @@ BUTTON_SCALE = 0.4
 BUTTON_GAP = 10
 BUTTON_RIGHT_MARGIN = 16
 BUTTON_TOP_MARGIN = 16
+DIALOGUE_FADE_DURATION = 1.0
 
 
 def _enable_alpha(image):
@@ -43,7 +45,7 @@ def _load_overlays(dialogue_file):
     return dialogue, pause_button, skip_button
 
 
-def _draw_overlays(overlays):
+def _draw_overlays(overlays, dialogue_opacity=1.0):
     if overlays is None:
         return
 
@@ -69,6 +71,7 @@ def _draw_overlays(overlays):
     )
     skip_x = CANVAS_WIDTH - BUTTON_RIGHT_MARGIN - skip_width / 2
 
+    dialogue.opacify(dialogue_opacity)
     dialogue.draw(
         CANVAS_WIDTH // 2,
         dialogue_height / 2,
@@ -82,6 +85,7 @@ def _draw_overlays(overlays):
 def run_image(image_file, dialogue_file=None):
     image = load_image(str(Path(__file__).with_name(image_file)))
     overlays = _load_overlays(dialogue_file)
+    dialogue_fade_start = monotonic()
 
     while True:
         for event in get_events():
@@ -102,6 +106,10 @@ def run_image(image_file, dialogue_file=None):
             CANVAS_WIDTH,
             CANVAS_HEIGHT,
         )
-        _draw_overlays(overlays)
+        dialogue_opacity = min(
+            (monotonic() - dialogue_fade_start) / DIALOGUE_FADE_DURATION,
+            1.0,
+        )
+        _draw_overlays(overlays, dialogue_opacity)
         update_canvas()
         delay(0.01)
