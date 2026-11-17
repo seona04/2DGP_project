@@ -1,8 +1,10 @@
 from pathlib import Path
 from time import monotonic
 
+import pause_mode
 from pico2d import (
     SDL_BLENDMODE_BLEND,
+    SDL_BUTTON_LEFT,
     SDL_KEYDOWN,
     SDL_MOUSEBUTTONDOWN,
     SDL_QUIT,
@@ -82,6 +84,44 @@ def _draw_overlays(overlays, dialogue_opacity=1.0):
     skip_button.draw(skip_x, button_center_y, skip_width, skip_height)
 
 
+def _pause_button_contains(mouse_x, mouse_y, overlays):
+    if overlays is None:
+        return False
+
+    _, pause_button, skip_button = overlays
+    pause_width = pause_button.w * BUTTON_SCALE
+    pause_height = pause_button.h * BUTTON_SCALE
+    skip_height = skip_button.h * BUTTON_SCALE
+    button_center_y = (
+        CANVAS_HEIGHT
+        - BUTTON_TOP_MARGIN
+        - max(pause_height, skip_height) / 2
+    )
+    pause_x = (
+        CANVAS_WIDTH
+        - BUTTON_RIGHT_MARGIN
+        - skip_button.w * BUTTON_SCALE
+        - BUTTON_GAP
+        - pause_width / 2
+    )
+    left = pause_x - pause_width / 2
+    right = pause_x + pause_width / 2
+    top = CANVAS_HEIGHT - button_center_y - pause_height / 2
+    bottom = CANVAS_HEIGHT - button_center_y + pause_height / 2
+    return left <= mouse_x < right and top <= mouse_y < bottom
+
+
+def _draw_scene(image, overlays, dialogue_opacity):
+    clear_canvas()
+    image.draw(
+        CANVAS_WIDTH // 2,
+        CANVAS_HEIGHT // 2,
+        CANVAS_WIDTH,
+        CANVAS_HEIGHT,
+    )
+    _draw_overlays(overlays, dialogue_opacity)
+
+
 def run_image(image_file, dialogue_file=None):
     image = load_image(str(Path(__file__).with_name(image_file)))
     overlays = _load_overlays(dialogue_file)
@@ -96,20 +136,29 @@ def run_image(image_file, dialogue_file=None):
                     return "exit"
                 if event.key == SDLK_SPACE:
                     return "next"
-            if event.type == SDL_MOUSEBUTTONDOWN:
+            if (
+                event.type == SDL_MOUSEBUTTONDOWN
+                and event.button == SDL_BUTTON_LEFT
+                and _pause_button_contains(event.x, event.y, overlays)
+            ):
+                dialogue_opacity = min(
+                    (monotonic() - dialogue_fade_start) / DIALOGUE_FADE_DURATION,
+                    1.0,
+                )
+                result = pause_mode.run(
+                    lambda: _draw_scene(image, overlays, dialogue_opacity)
+                )
+                if result == "exit":
+                    return result
+                if result != "resume":
+                    raise RuntimeError(f"Unexpected result from pause mode: {result}")
+            elif event.type == SDL_MOUSEBUTTONDOWN:
                 return "next"
 
-        clear_canvas()
-        image.draw(
-            CANVAS_WIDTH // 2,
-            CANVAS_HEIGHT // 2,
-            CANVAS_WIDTH,
-            CANVAS_HEIGHT,
-        )
         dialogue_opacity = min(
             (monotonic() - dialogue_fade_start) / DIALOGUE_FADE_DURATION,
             1.0,
         )
-        _draw_overlays(overlays, dialogue_opacity)
+        _draw_scene(image, overlays, dialogue_opacity)
         update_canvas()
         delay(0.01)
