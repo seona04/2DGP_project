@@ -1,5 +1,6 @@
 import TUK_logo_mode
 import title_mode
+import title_UI_mode
 
 from pico2d import (
     SDL_KEYDOWN,
@@ -19,6 +20,8 @@ def main():
     running = TUK_logo_mode.run()
     if running:
         running = title_mode.run()
+    if running:
+        running = title_UI_mode.run()
 
     while running:
         for event in get_events():
