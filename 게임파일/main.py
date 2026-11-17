@@ -1,17 +1,12 @@
 import TUK_logo_mode
+import game_story_mode
+import settings_mode
 import title_mode
 import title_UI_mode
 
 from pico2d import (
-    SDL_KEYDOWN,
-    SDL_QUIT,
-    SDLK_ESCAPE,
-    clear_canvas,
     close_canvas,
-    delay,
-    get_events,
     open_canvas,
-    update_canvas,
 )
 
 
@@ -20,19 +15,18 @@ def main():
     running = TUK_logo_mode.run()
     if running:
         running = title_mode.run()
+
     if running:
-        running = title_UI_mode.run()
-
-    while running:
-        for event in get_events():
-            if event.type == SDL_QUIT:
-                running = False
-            elif event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE:
-                running = False
-
-        clear_canvas()
-        update_canvas()
-        delay(0.01)
+        mode = "title_ui"
+        while mode != "exit":
+            if mode == "title_ui":
+                mode = title_UI_mode.run()
+            elif mode == "game_story":
+                mode = game_story_mode.run()
+            elif mode == "settings":
+                mode = settings_mode.run()
+            else:
+                raise RuntimeError(f"Unknown screen mode: {mode}")
 
     close_canvas()
 
