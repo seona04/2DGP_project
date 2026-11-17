@@ -130,9 +130,9 @@ def run():
                 return "exit"
             elif (
                 event.type == SDL_MOUSEBUTTONDOWN
-                and event.button.button == SDL_BUTTON_LEFT
+                and event.button == SDL_BUTTON_LEFT
             ):
-                mode = _button_mode_at(event.button.x, event.button.y)
+                mode = _button_mode_at(event.x, event.y)
                 if mode is not None:
                     return mode
 

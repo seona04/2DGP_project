@@ -1,22 +1,36 @@
-from pico2d import (
-    SDL_KEYDOWN,
-    SDL_QUIT,
-    SDLK_ESCAPE,
-    clear_canvas,
-    delay,
-    get_events,
-    update_canvas,
+from pathlib import Path
+
+import story1_mode
+import story2_mode
+import story3_mode
+import story4_mode
+import story5_mode
+import story6_mode
+
+
+STORY_MODULES = (
+    story1_mode,
+    story2_mode,
+    story3_mode,
+    story4_mode,
+    story5_mode,
+    story6_mode,
 )
 
 
-def run():
-    while True:
-        for event in get_events():
-            if event.type == SDL_QUIT:
-                return "exit"
-            if event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE:
-                return "exit"
+def _image_number(story_module):
+    image_stem = Path(story_module.IMAGE_FILE).stem
+    return int(image_stem.removeprefix("story"))
 
-        clear_canvas()
-        update_canvas()
-        delay(0.01)
+
+def run():
+    for story_module in sorted(STORY_MODULES, key=_image_number):
+        result = story_module.run()
+        if result == "exit":
+            return result
+        if result != "next":
+            raise RuntimeError(
+                f"Unexpected result from {story_module.__name__}: {result}"
+            )
+
+    return "title_ui"
